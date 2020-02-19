@@ -1,0 +1,31 @@
+idf_path = "3_EPmodels/base_Sep12_FINALCALIB_v5.idf" 
+idf1 = IDF(idf_path)
+ach_list = [5,6,7,8]
+para_sense_inf_dict_htm = {} #create empty dict
+
+for i in ach_list:
+    #calc flow coeff for different ach
+    ach = i
+    flowcoeffs = ach_to_flowcoeffs(ach,basement_wt=.4,L2_wt=.4,L1_wt=.1,GF_wt=.1,deltaP=50)
+    for j in range(0,7,1):
+        zone = idf1.idfobjects["ZONEINFILTRATION:FLOWCOEFFICIENT"][j]
+        zone.Flow_Coefficient = flowcoeffs[j]
+       
+    fname = "Oct1_sens"+str(ach)+"ach.idf"
+    print(bcolors.BOLD+fname+bcolors.ENDC)
+    idf1.saveas("3_EPmodels/"+fname)
+    outname = fname[:-4]
+    weather_file = "Weather_Files\CHEER2017_2.epw" #need to use 2017 weather file for calibration
+    run_ep("3_EPmodels\Energy+.idd", "3_EPmodels/" + fname, weather_file, out_path = "3_EPmodels", out_prefix = outname, out_suffix="L", expand = True, read_var = True)
+    html_path = "3_EPmodels/"+outname+"tbl.htm"
+    para_sense_inf_dict_htm[ach] = outname+"tbl.htm"
+print(para_sense_inf_dict_htm)
+
+json_name = "sense_inf_2.json"
+para_sense_inf_dict = get_para_results_sensitivity(para_sense_inf_dict_htm,json_name)
+
+
+#infiltration sensitivity results in a table (can copy and paste into excel to format)
+df = pd.DataFrame.from_dict(para_sense_inf_dict)
+df
+
