@@ -1,0 +1,22 @@
+#edit capacity until calibrated
+idf_path = "3_EPmodels/Oct8_calib_DHW1.02_baseboards_100Wperm2.idf" 
+idf1 = IDF(idf_path)
+capacities = range(95,107,2)
+for i in capacities:
+    rads = idf1.idfobjects["ZONEHVAC:BASEBOARD:RADIANTCONVECTIVE:WATER"]
+    for j in range(0,7,1):
+        zone_rad = rads[j]
+        zone_rad.Heating_Design_Capacity_Per_Floor_Area = i
+    
+    fname = "Oct8_calib_DHW1.02_baseboards_%.0f"%i+"Wperm2.idf"
+    print(bcolors.BOLD+fname+bcolors.ENDC)
+    idf1.saveas("3_EPmodels/"+fname)
+    outname = fname[:-4]
+    html_path = "3_EPmodels/"+outname+"tbl.htm"
+    weather_file = "Weather_Files\CHEER2017_2.epw" #need to use 2017 weather file for calibration
+    run_ep("3_EPmodels\Energy+.idd", "3_EPmodels/" + fname, weather_file, out_path = "3_EPmodels", out_prefix = outname, out_suffix="L", expand = True, read_var = True)
+    NMBE_CVRMSE_hcapacity[i] = NMBE_CVRMSE_for_calib_lights_equip_split(html_path)
+
+#display table of NMBE and CVRMSE values 
+df = pd.DataFrame.from_dict(NMBE_CVRMSE_hcapacity)
+df
