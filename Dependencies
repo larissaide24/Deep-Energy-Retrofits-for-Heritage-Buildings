@@ -1,0 +1,23 @@
+# Import dependencies
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib import cm #color map
+%matplotlib inline
+import pandas as pd
+import datetime
+from eppy.results import readhtml 
+from eppy import modeleditor
+from eppy.modeleditor import IDF
+import pprint
+import datetime as dt
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import seaborn as sns
+import chart_studio.plotly as py
+import plotly.tools as tls
+import six
+import json
+import waterfall_chart
+'''not all dependencies may be used in the code shared but it was used during 
+the process of the entire analysis so it may give you ideas of what to use.'''
