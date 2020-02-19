@@ -20,7 +20,7 @@ Table of Contents:
 
 Installation: Install the Anaconda Python package to install many useful libraries and environments for python. Can use this code in Jupyter Notebooks directly.  
 
-Usage: Use this code to edit idfs in energyplus, run parametric one factor at a time sensitivity analyses, check NMBE and CVRMSE of energy simulation data to measured energy data, analyse results from energyplus simulation from the output table or the output variable excel sheet. 
+Usage: Use this code to edit idfs in energyplus, run parametric one factor at a time sensitivity analyses, check NMBE and CVRMSE of energy simulation data to measured energy data, analyse results from energyplus simulation from the output table or the output variable excel sheet. Feel free to contact me if you have questions about the code and/or using python with energyplus.
 
 Contributing: I made this available so people reading my thesis can have look at and use the code. If you improve the code for yourself, then it would be great if you share. 
 
