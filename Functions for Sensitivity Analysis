@@ -1,0 +1,243 @@
+def run_ep(idd_path, idf_path,  epw_path, out_path="", out_prefix = "", out_suffix="L", expand = True, read_var = True):
+    ep_cmd = "C:/EnergyPlusV9-1-0/energyplus -i %s -w %s"%(idd_path, epw_path)
+    if out_path != "": ep_cmd += " -d %s"%(out_path) 
+    if out_prefix != "": ep_cmd += " -p %s"%(out_prefix) 
+    if expand: ep_cmd += " -x "
+    if read_var: ep_cmd += " -r "
+    ep_cmd += " -s %s"%(out_suffix)
+    ep_cmd += " %s"%(idf_path)
+    print(ep_cmd)
+    !$ep_cmd
+
+def summarize_results_sensitivity(html_path):
+    #baseline results from calibrated model for comparison
+    #get building area
+    area = 335.20
+    #get array of area for 12 months
+    i=1
+    area12 = []
+    for i in range(1,13,1):
+        area12.append(area)
+    #Updated baseline values Sep18_calib_v5 using AMY Cheer2017 weather file - updated Oct 2
+    baseline_monthly_elec_kWh = [1113.56, 1005.8,  1106.05, 1054.02, 1063.17, 999.44, 1028.64, 1031.92, 1034.62, 1104.28, 1075.91, 1113.16]
+    baseline_monthly_elec_EUI = np.divide(baseline_monthly_elec_kWh,area12)
+    baseline_monthly_gas_kWh = [7738.42, 6424.96, 4563.59, 2747.82, 1667.25,  791.92,  762.35, 787.46, 1019.15, 2894.86, 4234.16, 6112.06]
+    baseline_monthly_gas_EUI = np.divide(baseline_monthly_gas_kWh,area12)
+    
+    #get results
+    (monthly_elec_list,monthly_gas_list,epump_sum,eequip_sum,elights_sum,hgas_sum,wgas_sum) = show_results_lights_equip_split(html_path)
+    #monthly results
+    monthly_elec_EUI = np.divide(monthly_elec_list,area12)
+    monthly_gas_EUI = np.divide(monthly_gas_list,area12)
+    
+    #get monthly electricity savings
+    monthly_esavings_EUI = np.subtract(baseline_monthly_elec_EUI,monthly_elec_EUI)
+    #get total savings and print
+    total_esavings_EUI = sum(monthly_esavings_EUI)
+    
+    #get monthly gas savings
+    monthly_gsavings_EUI = np.subtract(baseline_monthly_gas_EUI,monthly_gas_EUI)
+    #get total savings and print
+    total_gsavings_EUI = sum(monthly_gsavings_EUI)
+    
+    #get total energy use
+    total_elec_EUI = sum(monthly_elec_EUI)
+    total_gas_EUI = sum(monthly_gas_EUI)
+    
+    #returns dictionary of total EUI and savings for parametric analysis later
+    return{'Annual Electricity Use Intensity, kWh/m2': total_elec_EUI,
+          'Annual Gas Use Intensity, kWh/m2': total_gas_EUI,
+          'Annual Electricity Savings, kWh/m2': total_esavings_EUI,
+          'Annual Gas Savings, kWh/m2': total_gsavings_EUI}
+
+def get_para_results_sensitivity(para_dict_htm,json_name):
+    """Given a dictionary of htm EP results files and json file name,
+    this function will return a dictionary that will be saved as a json file that can be plotted later"""
+    #window retrofit = True is for using the new baseline file with LBNL window info
+    para_results_summary = {}
+    
+    for i in para_dict_htm: 
+        #create dictionary of results
+        filepath = para_dict_htm[i]
+        html_path = "3_EPmodels/" + filepath
+        para_results_summary[i] = summarize_results_sensitivity(html_path)
+    print(para_results_summary) #to see results    
+    
+    json_path = "3_EPmodels/Results/" + json_name
+    with open(json_path,'w') as fp: #save a new json file and write to it
+        json.dump(para_results_summary, fp)
+    with open(json_path, 'r') as fp:
+        para_results_summary_json= json.load(fp) #load data from json file and save as a dictionary
+    
+    return(para_results_summary_json)
+
+#get test values for creating function to plot results
+
+def show_results_lights_equip_split(html_path):#html path should be "3_EPmodels/ABBwDHWtbl.htm" format
+    #set idd file
+    #iddfile = idd_path
+    #IDF.setiddname(iddfile) #not sure i need this
+    print(html_path)    
+    #use eppy to read html table output
+    from eppy.results import readhtml # the eppy module with functions to read the html
+    fname = html_path # the html file you want to read
+    filehandle = open(fname, 'r').read() # get a file handle to the html file
+
+    table_headings = readhtml.titletable(filehandle) # reads the tables with their titles
+    #test printing first item
+    firstitem = table_headings[0]
+    print("This is to test printing the first item.\n")
+    #for nicer looking tables
+    import pprint
+    pp = pprint.PrettyPrinter()
+    pp.pprint(firstitem)
+    #print all table headings for test
+    #print("Printing all table headings.\n")
+    alltitles = [table_heading[0] for table_heading in table_headings]
+    #print(alltitles)
+    # read the tables with their titles
+    ltables = readhtml.lines_table(filehandle) 
+    #read monthly electricity table and print lines before table
+    monthly_elec = ltables[151] #this is correct
+    lines_before_table = monthly_elec[0]
+    table_itself = monthly_elec[-1]
+    print(lines_before_table)
+    print(table_itself)
+    #get monthly elec equipment values
+    i=1
+    monthly_elec_equip_list=[]
+    for i in range(1,13,1):
+        monthly_elec_value = table_itself[i][3] #why is this out of range?
+        monthly_elec_equip_list.append(monthly_elec_value)
+    eequip_sum = sum(monthly_elec_equip_list)
+    print("The annual electricity consumption from electrical equipment is %.2f"%eequip_sum+"kWh.")
+
+    monthly_lights_list=[]
+    for i in range(1,13,1):
+        monthly_elec_value = table_itself[i][1]
+        monthly_lights_list.append(monthly_elec_value)
+    elights_sum = sum(monthly_lights_list)
+    print("The annual electricity consumption from electrical lighting is %.2f"%elights_sum+"kWh.")
+
+    #get building area
+    area = 335.20
+    #get array of area for 12 months
+    i=1
+    area12 = []
+    for i in range(1,13,1):
+        area12.append(area)
+    #actual energy use
+    actual_annual_energy = {"gas_energy":39949,"elec_energy":12462,"total_energy":52411,"gas_EUI":119.18,"elec_EUI":37.18,"total_EUI":156.35,"energy_units":"kWh","EUI_units":"kWh/m2"}
+    actual_monthly_elec_kWh = [1312.87,1161.13,1284.55,924.02,857.51,976.3,1157.82,950.77,874.36,1025.22,964.23,964.13]
+    actual_monthly_elec_EUI = np.divide(actual_monthly_elec_kWh,area12)
+    actual_monthly_gas_kWh = [7429.67261,6840.672139,4918.670602,2500.668667,2077.001662,744.0005952,465.000372,909.3340608,299.6669064,2263.00181,4133.33664,7367.672561]
+    actual_monthly_gas_EUI = np.divide(actual_monthly_gas_kWh,area12)
+    actual_monthly_gas_avg_kWh = np.average(actual_monthly_gas_kWh)
+    actual_monthly_elec_avg_kWh = np.average(actual_monthly_elec_kWh)
+    '''print("actual_monthly_elec_EUI \n")
+    print(actual_monthly_elec_EUI)
+    print("Total actual_monthly_elec_EUI \n")
+    print(sum(actual_monthly_elec_EUI))
+    '''
+    
+    #get elec values from table
+    i=1
+    monthly_elec_pump_list=[]
+    for i in range(1,13,1):
+        monthly_elec_pump_value = table_itself[i][6]
+        monthly_elec_pump_list.append(monthly_elec_pump_value)
+    epump_sum = sum(monthly_elec_pump_list)
+    print("The annual electricity consumption from pumps is %.2f" % epump_sum+" kWh.")
+    monthly_elec_arrays = np.array([monthly_elec_equip_list,monthly_elec_pump_list,monthly_lights_list])
+    monthly_elec_list = monthly_elec_arrays.sum(axis=0)
+    total_elec_sum = sum(monthly_elec_list)
+    total_elec_EUI = total_elec_sum/area
+    print("\n Monthly Total Elec Use (kWh)")
+    print(monthly_elec_list)
+    print("\n Monthly Total Elec Intensity (kWh/$m^2$)")
+    print(np.divide(monthly_elec_list,area12))
+    print("The total annual electricity consumption is %.2f" % total_elec_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The total annual electricity use intensity is %.2f" % total_elec_EUI+" kWh/m2.")+bcolors.ENDC)
+    print(monthly_elec_list)    
+    
+    #heating gas table from html table results
+    monthly_hgas = ltables[152]
+    lines_before_table_hgas = monthly_hgas[0]
+    table_itself_hgas = monthly_hgas[-1]
+    print(lines_before_table_hgas)
+    
+    #get heating gas results 
+    i=1
+    monthly_hgas_list=[]
+    for i in range(1,13,1):
+        monthly_hgas_value = table_itself_hgas[i][3] 
+        monthly_hgas_list.append(monthly_hgas_value) 
+    print(monthly_hgas_list)
+    hgas_sum = sum(monthly_hgas_list)
+    hgas_EUI = hgas_sum/area
+    print("The annual gas consumption from heating is %.2f" % hgas_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The annual gas consumption intensity from heating is %.2f" % hgas_EUI + " kWh/m2.")+bcolors.ENDC)
+    
+    #get DHW gas results
+    monthly_wgas1 = ltables[157]
+    monthly_wgas2 = ltables[158]
+    monthly_wgas3 = ltables[159]
+    monthly_wgas4 = ltables[160]
+
+    lines_before_table_wgas1 = monthly_wgas1[0]
+    table_itself_wgas1 = monthly_wgas1[-1]
+    print("First DHW table")
+    print(lines_before_table_wgas1)
+    print(table_itself_wgas1)
+    lines_before_table_wgas2 = monthly_wgas2[0]
+    table_itself_wgas2 = monthly_wgas2[-1]
+    lines_before_table_wgas3 = monthly_wgas3[0]
+    table_itself_wgas3 = monthly_wgas3[-1]
+    lines_before_table_wgas4 = monthly_wgas4[0]
+    table_itself_wgas4 = monthly_wgas4[-1]
+
+    #get DHW gas results for the four zones with DHW
+    i=1
+    monthly_wgas1_list=[]
+    for i in range(1,13,1):
+        monthly_wgas1_value = table_itself_wgas1[i][1]
+        monthly_wgas1_list.append(monthly_wgas1_value) 
+    
+    monthly_wgas2_list=[]
+    for i in range(1,13,1):
+        monthly_wgas2_value = table_itself_wgas2[i][1]
+        monthly_wgas2_list.append(monthly_wgas2_value)
+    
+    monthly_wgas3_list=[]
+    for i in range(1,13,1):
+        monthly_wgas3_value = table_itself_wgas3[i][1]
+        monthly_wgas3_list.append(monthly_wgas3_value)
+    
+    monthly_wgas4_list=[]
+    for i in range(1,13,1):
+        monthly_wgas4_value = table_itself_wgas4[i][1]
+        monthly_wgas4_list.append(monthly_wgas4_value)
+
+    wgas_list12 = np.add(monthly_wgas1_list,monthly_wgas2_list)
+    wgas_list34 = np.add(monthly_wgas3_list,monthly_wgas4_list)
+    monthly_wgas_list = np.add(wgas_list12,wgas_list34)
+    print("\n Monthly Total DHW (kWh)")
+    print(monthly_wgas_list)
+    wgas_sum = sum(monthly_wgas_list)
+    wgas_EUI = wgas_sum/area
+    print("The annual gas consumption from DHW is %.2f" % wgas_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The annual gas consumption intensity from DHW is %.2f" % wgas_EUI + " kWh/m2.")+bcolors.ENDC)
+    
+    #get TOTAL gas energy use (DHW and heating) for comparison
+    monthly_gas_list = np.add(monthly_hgas_list,monthly_wgas_list)
+    print("\n Monthly Total (heating and DHW) Gas Use (kWh)")
+    print(monthly_gas_list)
+    print("\n Monthly Total (heating and DHW) Gas Intensity (kWh/$m^2$)")
+    print(np.divide(monthly_gas_list,area12))
+    total_gas_sum = sum(monthly_gas_list)
+    total_gas_EUI = total_gas_sum/area
+    print("The annual gas consumption from heating and DHW is %.2f" % total_gas_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The annual gas consumption intensity from heating and DHW is %.2f" % total_gas_EUI + " kWh/m2.")+bcolors.ENDC)
+    
+    return(monthly_elec_list,monthly_gas_list,epump_sum,eequip_sum,elights_sum,hgas_sum,wgas_sum) 
+
