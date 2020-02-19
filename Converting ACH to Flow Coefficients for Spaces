@@ -1,0 +1,37 @@
+def ach_to_flowcoeffs(ach,basement_wt=.2,L2_wt=.4,L1_wt=.2,GF_wt=.2,deltaP=50):    
+    #calculate infiltration flow coefficient based on ach 50Pa
+    n = 0.67
+    #need stack coeff, wind coeff and shelter factor from ASHRAE as other inputs for ZoneInfiltration:FlowCoeff
+    #assuming basement 40%, ground and first floor 10% each, and second floor 40%
+    #calc ach based on weights
+    basement_ach = basement_wt*ach
+    L2_ach = L2_wt*ach
+    GF_ach = GF_wt*ach
+    L1_ach = L1_wt*ach
+    #main dimensions for volume calc - m, m3
+    main_w= 7.08
+    main_h= 3.05
+    main_l= 10.36
+    main_vol = main_w*main_h*main_l
+    #addition dimensions for volume calc - m3
+    add_w = 2.79
+    add_h = 3.05 
+    add_l = 4.34
+    add_vol = add_w*add_h*add_l
+    #calculate infiltration flow rate for each space m3/s
+    main_q_basement = basement_ach*main_vol/3600
+    add_q_basement = basement_ach*add_vol/3600
+    main_q_GF = GF_ach*main_vol/3600
+    add_q_GF = GF_ach*add_vol/3600
+    main_q_L1 = L1_ach*main_vol/3600
+    add_q_L1 = L1_ach*add_vol/3600
+    main_q_L2 = L2_ach*main_vol/3600
+    inf_flowrates = [main_q_basement, add_q_basement,main_q_L1, add_q_L1, main_q_GF,add_q_GF,main_q_L2]
+    #calculate and store flow coeffs in order of idf objects
+    #basement, basement add, first floor, first floor add, GF, GF add, second floor
+    flow_coeffs = []
+    for i in range(0,7,1):
+        q = inf_flowrates[i]
+        flow_coeff = q/(deltaP**n)
+        flow_coeffs.append(round(flow_coeff,5))
+    return(flow_coeffs)
