@@ -1,0 +1,190 @@
+#function for checking NMBE and CVRMSE of gas 
+def NMBE_CVRMSE_for_calib_lights_equip_split(html_path):#html path should be "3_EPmodels/ABBwDHWtbl.htm" format
+    #set idd file
+    #iddfile = idd_path
+    #IDF.setiddname(iddfile) #not sure i need this
+    print(html_path)    
+    #use eppy to read html table output
+    from eppy.results import readhtml # the eppy module with functions to read the html
+    fname = html_path # the html file you want to read
+    filehandle = open(fname, 'r').read() # get a file handle to the html file
+
+    table_headings = readhtml.titletable(filehandle) # reads the tables with their titles
+    #test printing first item
+    firstitem = table_headings[0]
+    print("This is to test printing the first item.\n")
+    print(firstitem)
+    #for nicer looking tables
+    import pprint
+    pp = pprint.PrettyPrinter()
+    pp.pprint(firstitem)
+    #print all table headings for test
+    #print("Printing all table headings.\n")
+    alltitles = [table_heading[0] for table_heading in table_headings]
+    pp.pprint(alltitles)
+    # read the tables with their titles
+    ltables = readhtml.lines_table(filehandle) 
+    #read monthly electricity table and print lines before table
+    monthly_elec = ltables[151]
+    print(monthly_elec)
+    lines_before_table = monthly_elec[0]
+    table_itself = monthly_elec[-1]
+    print(lines_before_table)
+    #get monthly elec equipment values
+    i=1
+    monthly_elec_equip_list=[]
+    for i in range(1,13,1):
+        monthly_elec_value = table_itself[i][3]
+        monthly_elec_equip_list.append(monthly_elec_value) 
+    print("The annual electricity consumption from electrical equipment is "+str(sum(monthly_elec_equip_list))+"kWh.")
+    
+    #get building area
+    area = 335.20
+    #get array of area for 12 months
+    i=1
+    area12 = []
+    for i in range(1,13,1):
+        area12.append(area)
+    #actual energy use
+    actual_annual_energy = {"gas_energy":39949,"elec_energy":12462,"total_energy":52411,"gas_EUI":119.18,"elec_EUI":37.18,"total_EUI":156.35,"energy_units":"kWh","EUI_units":"kWh/m2"}
+    actual_monthly_elec_kWh = [1312.87,1161.13,1284.55,924.02,857.51,976.3,1157.82,950.77,874.36,1025.22,964.23,964.13]
+    actual_monthly_elec_EUI = np.divide(actual_monthly_elec_kWh,area12)
+    actual_monthly_gas_kWh = [7429.67261,6840.672139,4918.670602,2500.668667,2077.001662,744.0005952,465.000372,909.3340608,299.6669064,2263.00181,4133.33664,7367.672561]
+    actual_monthly_gas_EUI = np.divide(actual_monthly_gas_kWh,area12)
+    actual_monthly_gas_avg_kWh = np.average(actual_monthly_gas_kWh)
+    actual_monthly_elec_avg_kWh = np.average(actual_monthly_elec_kWh)
+    '''print("actual_monthly_elec_EUI \n")
+    print(actual_monthly_elec_EUI)
+    print("Total actual_monthly_elec_EUI \n")
+    print(sum(actual_monthly_elec_EUI))
+    '''
+    
+    #get elec values from table
+    i=1
+    monthly_elec_pump_list=[]
+    for i in range(1,13,1):
+        monthly_elec_pump_value = table_itself[i][6]
+        monthly_elec_pump_list.append(monthly_elec_pump_value) 
+    print("The annual electricity consumption from pumps is %.2f" % sum(monthly_elec_pump_list)+" kWh.")
+    
+    monthly_lights_list=[]
+    for i in range(1,13,1):
+        monthly_elec_value = table_itself[i][1]
+        monthly_lights_list.append(monthly_elec_value)
+    elights_sum = sum(monthly_lights_list)
+    print("The annual electricity consumption from electrical lighting is %.2f"%elights_sum+"kWh.")
+
+    monthly_elec_arrays = np.array([monthly_elec_equip_list,monthly_elec_pump_list,monthly_lights_list])
+    monthly_elec_list = monthly_elec_arrays.sum(axis=0)
+    total_elec_sum = np.sum(monthly_elec_list)
+    total_elec_EUI = total_elec_sum/area
+    print("The total annual electricity consumption is %.2f" % total_elec_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The total annual electricity use intensity is %.2f" % total_elec_EUI+" kWh/m2.")+bcolors.ENDC)
+    
+    #heating gas table from html table results
+    monthly_hgas = ltables[152]
+    lines_before_table_hgas = monthly_hgas[0]
+    table_itself_hgas = monthly_hgas[-1]
+    print(lines_before_table_hgas)
+    
+    #get heating gas results 
+    i=1
+    monthly_hgas_list=[]
+    for i in range(1,13,1):
+        monthly_hgas_value = table_itself_hgas[i][3]
+        monthly_hgas_list.append(monthly_hgas_value) 
+    print(monthly_hgas_list)
+    total_hgas_sum = sum(monthly_hgas_list)
+    total_hgas_EUI = total_hgas_sum/area
+    print("The annual gas consumption from heating is %.2f" % total_hgas_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The annual gas consumption intensity from heating is %.2f" % total_hgas_EUI + " kWh/m2.\n")+bcolors.ENDC)
+    
+    #DHW gas table from html table results
+    monthly_wgas1 = ltables[157]
+    monthly_wgas2 = ltables[158]
+    monthly_wgas3 = ltables[159]
+    monthly_wgas4 = ltables[160]
+
+    lines_before_table_wgas1 = monthly_wgas1[0]
+    table_itself_wgas1 = monthly_wgas1[-1]
+    print("First DHW table")
+    print(lines_before_table_wgas1)
+    print(table_itself_wgas1)
+    lines_before_table_wgas2 = monthly_wgas2[0]
+    table_itself_wgas2 = monthly_wgas2[-1]
+    lines_before_table_wgas3 = monthly_wgas3[0]
+    table_itself_wgas3 = monthly_wgas3[-1]
+    lines_before_table_wgas4 = monthly_wgas4[0]
+    table_itself_wgas4 = monthly_wgas4[-1]
+    
+    #get DHW gas results for the four zones with DHW
+    i=1
+    monthly_wgas1_list=[]
+    for i in range(1,13,1):
+        monthly_wgas1_value = table_itself_wgas1[i][1]
+        monthly_wgas1_list.append(monthly_wgas1_value) 
+    
+    monthly_wgas2_list=[]
+    for i in range(1,13,1):
+        monthly_wgas2_value = table_itself_wgas2[i][1]
+        monthly_wgas2_list.append(monthly_wgas2_value)
+    
+    monthly_wgas3_list=[]
+    for i in range(1,13,1):
+        monthly_wgas3_value = table_itself_wgas3[i][1]
+        monthly_wgas3_list.append(monthly_wgas3_value)
+    
+    monthly_wgas4_list=[]
+    for i in range(1,13,1):
+        monthly_wgas4_value = table_itself_wgas4[i][1]
+        monthly_wgas4_list.append(monthly_wgas4_value)
+
+    wgas_list12 = np.add(monthly_wgas1_list,monthly_wgas2_list)
+    wgas_list34 = np.add(monthly_wgas3_list,monthly_wgas4_list)
+    monthly_wgas_list = np.add(wgas_list12,wgas_list34)
+    print("\n Monthly Total DHW (kWh)")
+    print(monthly_wgas_list)
+    total_wgas_sum = sum(monthly_wgas_list)
+    total_wgas_EUI = total_wgas_sum/area
+    print("The annual gas consumption from DHW is %.2f" % total_wgas_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The annual gas consumption intensity from DHW is %.2f" % total_wgas_EUI + " kWh/m2.")+bcolors.ENDC)
+    
+    #get TOTAL gas energy use (DHW and heating) for comparison
+    monthly_gas_list = np.add(monthly_hgas_list,monthly_wgas_list)
+    print(monthly_gas_list)
+    total_gas_sum = sum(monthly_gas_list)
+    total_gas_EUI = total_gas_sum/area
+    print("The annual gas consumption from heating and DHW is %.2f" % total_gas_sum +" kWh.")
+    print(bcolors.OKBLUE + ("The annual gas consumption intensity from heating and DHW is %.2f" % total_gas_EUI + " kWh/m2.")+bcolors.ENDC)
+    
+    #get NMBE and CVRMSE for gas results for calibration
+    #NMBE = sum(actual-simulation)/12/actual_avg*100%
+    #Want NMBE <5%
+    gas_kWh_monthly_diff = np.subtract(actual_monthly_gas_kWh,monthly_gas_list)
+    print("The differences between actual and simulated gas energy use are (- =overprediction, + =underprediction):")
+    print(gas_kWh_monthly_diff)
+    avg_diff_gas = np.sum(gas_kWh_monthly_diff)/12
+    NMBE_gas = avg_diff_gas/actual_monthly_gas_avg_kWh*100
+    print("NMBE = %.2f%%" % NMBE_gas)
+    if NMBE_gas < 5 and NMBE_gas > -5:
+        print(bcolors.OKGREEN + ("The NMBE is acceptable")+bcolors.ENDC)
+    else:
+        print(bcolors.FAIL + ("The NMBE is not acceptable")+bcolors.ENDC)
+    #CVRMSE = RMSE/avg_actual*100, RMSE = sqrt(MSE), MSE = avg(SE), SE=(actual-sim)^2
+    monthly_gas_SE = np.square(gas_kWh_monthly_diff)
+    MSE_gas = np.average(monthly_gas_SE)
+    RMSE_gas = math.sqrt(MSE_gas)
+    CVRMSE_gas = RMSE_gas/actual_monthly_gas_avg_kWh*100
+    print("CVRMSE = %.2f%%" % CVRMSE_gas)
+    #want CVRMSE < 15%
+    if CVRMSE_gas < 15:
+        print(bcolors.OKGREEN + ("The CVRMSE is acceptable")+bcolors.ENDC)
+    else:
+        print(bcolors.FAIL + ("The CVRMSE is not acceptable")+bcolors.ENDC)
+    if NMBE_gas < 5 and NMBE_gas > -5 and CVRMSE_gas < 15:
+        print(bcolors.OKGREEN + bcolors.BOLD+("The model is adequately calibrated to gas energy consumption.")+bcolors.ENDC)
+    else:
+        print(bcolors.FAIL + bcolors.BOLD+("The model is NOT adequately calibrated to gas energy consumption yet.\n")+bcolors.ENDC)
+    
+    return({"Monthly Elec":monthly_elec_list,"Monthly Gas":monthly_gas_list,"NMBE":NMBE_gas,"CVRMSE":CVRMSE_gas})#returns NMBE and CVRMSE in %
+
